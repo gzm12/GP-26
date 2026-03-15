@@ -4,6 +4,13 @@ using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
+    // Events and Delegates
+    public delegate void ScoreChangedDelegate(int newScore);
+    public event ScoreChangedDelegate OnScoreChanged;
+
+    public delegate void GameOverDelegate(int finalScore);
+    public event GameOverDelegate OnGameOver;
+
     // Prefab references
     [SerializeField] private GameObject playerPrefab;
     [SerializeField] private GameObject enemyPrefab;
@@ -240,6 +247,9 @@ public class GameManager : MonoBehaviour
             score++;
             scoreTimer = 0f;
             Debug.Log("Score: " + score);
+            
+            // Invoke the OnScoreChanged event
+            OnScoreChanged?.Invoke(score);
         }
     }
 
@@ -267,6 +277,23 @@ public class GameManager : MonoBehaviour
         // Stop player movement
         if (playerRb != null)
             playerRb.linearVelocity = Vector3.zero;
+
+        // Invoke the OnGameOver event
+        OnGameOver?.Invoke(score);
+    }
+
+    // ========== PUBLIC ACCESSORS ==========
+
+    // Get current score
+    public int GetScore()
+    {
+        return score;
+    }
+
+    // Check if game is over
+    public bool IsGameOver()
+    {
+        return isGameOver;
     }
 
     // ========== HELPER METHODS ==========
