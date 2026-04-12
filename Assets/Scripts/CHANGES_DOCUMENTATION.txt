@@ -1,0 +1,645 @@
+================================================================================
+GAME PROJECT CHANGES - DOCUMENTATION
+Date: 2024
+Project: Dodging Game - GameManager, UIManager, EnemyCollisionDetector
+================================================================================
+
+================================================================================
+1. ADDING EVENTS AND DELEGATES (GameManager.cs)
+================================================================================
+
+--- BEFORE (OLD) ---
+using UnityEngine;
+using UnityEngine.InputSystem;
+using System.Collections.Generic;
+
+public class GameManager : MonoBehaviour
+{
+    // Prefab references
+    [SerializeField] private GameObject playerPrefab;
+    [SerializeField] private GameObject enemyPrefab;
+    // ... other code ...
+}
+
+--- AFTER (NEW) ---
+using UnityEngine;
+using UnityEngine.InputSystem;
+using System.Collections.Generic;
+
+public class GameManager : MonoBehaviour
+{
+    // Events and Delegates
+    public delegate void ScoreChangedDelegate(int newScore);
+    public event ScoreChangedDelegate OnScoreChanged;
+
+    public delegate void GameOverDelegate(int finalScore);
+    public event GameOverDelegate OnGameOver;
+
+    // Prefab references
+    [SerializeField] private GameObject playerPrefab;
+    [SerializeField] private GameObject enemyPrefab;
+    // ... other code ...
+}
+
+EXPLANATION: 
+- Delegates defined: ScoreChangedDelegate and GameOverDelegate
+- Events created: OnScoreChanged and OnGameOver
+- These events can be used in other scripts like UIManager
+- Provides loose coupling between components
+
+
+================================================================================
+2. ADDING FINDING METHODS TO START METHOD
+================================================================================
+
+--- BEFORE ---
+void Start()
+{
+    // Load prefabs if not assigned
+    if (playerPrefab == null)
+        playerPrefab = Resources.Load<GameObject>("Prefabs/PlayerPrefab");
+    if (enemyPrefab == null)
+        enemyPrefab = Resources.Load<GameObject>("Prefabs/EnemyPrefab");
+
+    // Setup camera
+    SetupCamera();
+    CreatePlayer();
+}
+
+--- AFTER ---
+void Start()
+{
+    // Load prefabs if not assigned
+    if (playerPrefab == null)
+        playerPrefab = Resources.Load<GameObject>("Prefabs/PlayerPrefab");
+    if (enemyPrefab == null)
+        enemyPrefab = Resources.Load<GameObject>("Prefabs/EnemyPrefab");
+
+    // Setup camera
+    SetupCamera();
+    CreatePlayer();
+    
+    // Find player by tag (alternative method)
+    FindPlayerByTag();
+    
+    // Find all enemies (will be called periodically)
+    FindAllEnemies();
+}
+
+EXPLANATION:
+- FindPlayerByTag() method is called
+- FindAllEnemies() method is called
+- These methods demonstrate finding objects in the scene
+
+
+================================================================================
+3. ADDING EVENT INVOKE TO HANDLE SCORE METHOD
+================================================================================
+
+--- BEFORE ---
+void HandleScore()
+{
+    scoreTimer += Time.deltaTime;
+
+    if (scoreTimer >= 1f)
+    {
+        score++;
+        scoreTimer = 0f;
+        Debug.Log("Score: " + score);
+    }
+}
+
+--- AFTER ---
+void HandleScore()
+{
+    scoreTimer += Time.deltaTime;
+
+    if (scoreTimer >= 1f)
+    {
+        score++;
+        scoreTimer = 0f;
+        Debug.Log("Score: " + score);
+        
+        // Invoke the OnScoreChanged event
+        OnScoreChanged?.Invoke(score);
+    }
+}
+
+EXPLANATION:
+- OnScoreChanged event is triggered when score increases
+- ?. operator performs null-safe invocation
+- UIManager listens to this event and updates the UI
+
+
+================================================================================
+4. ADDING EVENT INVOKE TO GAME OVER METHOD
+================================================================================
+
+--- BEFORE ---
+void GameOver()
+{
+    if (isGameOver)
+        return;
+
+    isGameOver = true;
+    Debug.Log("Game Over! Final Score: " + score);
+
+    // Stop all enemy movement
+    foreach (GameObject enemy in enemies)
+    {
+        if (enemy != null)
+        {
+            Rigidbody rb = enemy.GetComponent<Rigidbody>();
+            if (rb != null)
+                rb.linearVelocity = Vector3.zero;
+        }
+    }
+
+    // Stop player movement
+    if (playerRb != null)
+        playerRb.linearVelocity = Vector3.zero;
+}
+
+--- AFTER ---
+void GameOver()
+{
+    if (isGameOver)
+        return;
+
+    isGameOver = true;
+    Debug.Log("Game Over! Final Score: " + score);
+
+    // Stop all enemy movement
+    foreach (GameObject enemy in enemies)
+    {
+        if (enemy != null)
+        {
+            Rigidbody rb = enemy.GetComponent<Rigidbody>();
+            if (rb != null)
+                rb.linearVelocity = Vector3.zero;
+        }
+    }
+
+    // Stop player movement
+    if (playerRb != null)
+        playerRb.linearVelocity = Vector3.zero;
+
+    // Invoke the OnGameOver event
+    OnGameOver?.Invoke(score);
+}
+
+EXPLANATION:
+- OnGameOver event is triggered when the game ends
+- UIManager listens to this event and displays the Game Over screen
+
+
+================================================================================
+5. ADDING PUBLIC ACCESSOR METHODS
+================================================================================
+
+--- BEFORE ---
+// No public accessor methods existed
+// Score and isGameOver were private and inaccessible from outside
+
+--- AFTER ---
+// ========== PUBLIC ACCESSORS ==========
+
+// Get current score
+public int GetScore()
+{
+    return score;
+}
+
+// Check if game is over
+public bool IsGameOver()
+{
+    return isGameOver;
+}
+
+// Public method to trigger game over (called from EnemyCollisionDetector)
+public void TriggerGameOver()
+{
+    GameOver();
+}
+
+EXPLANATION:
+- GetScore(): Allows UIManager to retrieve the score
+- IsGameOver(): Allows checking if the game has ended
+- TriggerGameOver(): Can be called from EnemyCollisionDetector
+- Encapsulation is achieved: private data, public methods
+
+
+================================================================================
+6. ADDING COLLISION DETECTOR AND TAG TO SPAWN ENEMY METHOD
+================================================================================
+
+--- BEFORE ---
+void SpawnEnemy()
+{
+    // Instantiate enemy from prefab
+    GameObject enemy = Instantiate(enemyPrefab);
+    enemy.name = "Enemy";
+    float randomX = Random.Range(-8f, 8f);
+    enemy.transform.position = new Vector3(randomX, 8f, 0);
+
+    // Remove 2D components and add 3D components
+    RemoveBoxCollider2D(enemy);
+    Rigidbody2D rb2d = enemy.GetComponent<Rigidbody2D>();
+    if (rb2d != null)
+        Destroy(rb2d);
+
+    // Add 3D Rigidbody
+    Rigidbody rb = enemy.GetComponent<Rigidbody>();
+    if (rb == null)
+        rb = enemy.AddComponent<Rigidbody>();
+
+    rb.useGravity = false;
+    rb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionX | RigidbodyConstraints.FreezePositionZ;
+
+    // Add 3D BoxCollider
+    BoxCollider collider = enemy.GetComponent<BoxCollider>();
+    if (collider == null)
+        collider = enemy.AddComponent<BoxCollider>();
+    collider.size = new Vector3(1f, 1f, 1f);
+
+    // Add to list
+    enemies.Add(enemy);
+}
+
+--- AFTER ---
+void SpawnEnemy()
+{
+    // Instantiate enemy from prefab
+    GameObject enemy = Instantiate(enemyPrefab);
+    enemy.name = "Enemy";
+    float randomX = Random.Range(-8f, 8f);
+    enemy.transform.position = new Vector3(randomX, 8f, 0);
+
+    // Remove 2D components and add 3D components
+    RemoveBoxCollider2D(enemy);
+    Rigidbody2D rb2d = enemy.GetComponent<Rigidbody2D>();
+    if (rb2d != null)
+        Destroy(rb2d);
+
+    // Add 3D Rigidbody
+    Rigidbody rb = enemy.GetComponent<Rigidbody>();
+    if (rb == null)
+        rb = enemy.AddComponent<Rigidbody>();
+
+    rb.useGravity = false;
+    rb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionX | RigidbodyConstraints.FreezePositionZ;
+
+    // Add 3D BoxCollider
+    BoxCollider collider = enemy.GetComponent<BoxCollider>();
+    if (collider == null)
+        collider = enemy.AddComponent<BoxCollider>();
+    collider.size = new Vector3(1f, 1f, 1f);
+
+    // Add collision detector script
+    if (enemy.GetComponent<EnemyCollisionDetector>() == null)
+        enemy.AddComponent<EnemyCollisionDetector>();
+
+    // Set tag
+    enemy.tag = "Enemy";
+
+    // Add to list
+    enemies.Add(enemy);
+}
+
+EXPLANATION:
+- EnemyCollisionDetector component is automatically added
+- Enemy tag is assigned (required for FindWithTag())
+- All spawned enemies now have collision detection capabilities
+
+
+================================================================================
+7. ADDING FINDING METHODS (NEW METHODS)
+================================================================================
+
+--- BEFORE ---
+// No finding methods existed
+
+--- AFTER ---
+// ========== FINDING METHODS ==========
+
+// Find player by tag
+void FindPlayerByTag()
+{
+    GameObject foundPlayer = GameObject.FindWithTag("Player");
+    if (foundPlayer != null && foundPlayer == player)
+    {
+        Debug.Log("Player found by tag: " + foundPlayer.name);
+    }
+}
+
+// Find all enemies by tag and log them
+void FindAllEnemies()
+{
+    // Find all enemies in the scene using tag
+    GameObject[] allEnemies = GameObject.FindGameObjectsWithTag("Enemy");
+    Debug.Log("Found " + allEnemies.Length + " enemies in the scene");
+    
+    // Compare with our managed list
+    Debug.Log("Enemies in list: " + enemies.Count);
+}
+
+EXPLANATION:
+- FindPlayerByTag(): Uses GameObject.FindWithTag() (Finding by Tag)
+- FindAllEnemies(): Uses GameObject.FindGameObjectsWithTag() (Finding with Array)
+- These methods provide debug information
+- Fulfills the "Finding things in scene" requirement
+
+
+================================================================================
+8. NEW SCRIPT: EnemyCollisionDetector.cs (COMPLETELY NEW)
+================================================================================
+
+using UnityEngine;
+
+public class EnemyCollisionDetector : MonoBehaviour
+{
+    private GameManager gameManager;
+
+    void Start()
+    {
+        // Find GameManager by type
+        gameManager = FindObjectOfType<GameManager>();
+        
+        // Make collider a trigger for OnTrigger events
+        Collider collider = GetComponent<Collider>();
+        if (collider != null)
+        {
+            collider.isTrigger = true;
+        }
+    }
+
+    // Trigger enter - when something enters the enemy collider
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.gameObject.CompareTag("Player"))
+        {
+            Debug.Log("Enemy collision detected with player!");
+            if (gameManager != null)
+            {
+                gameManager.TriggerGameOver();
+            }
+        }
+    }
+}
+
+EXPLANATION:
+- FindObjectOfType<GameManager>(): Finding by Type
+- OnTriggerEnter(): Physics trigger collision detection
+- CompareTag(): Checking object by tag
+- EnemyCollisionDetector is added to every spawned enemy
+- Calls TriggerGameOver() when enemy collides with player
+
+
+================================================================================
+9. UPDATED UIManager.cs - ADDING UNITYEVENTS
+================================================================================
+
+--- BEFORE ---
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+public class UIManager : MonoBehaviour
+{
+    [SerializeField] private TextMeshProUGUI scoreText;
+    [SerializeField] private TextMeshProUGUI gameOverText;
+    [SerializeField] private GameManager gameManager;
+
+    private bool hasGameEnded = false;
+
+    void Start()
+    {
+        if (gameManager == null)
+            gameManager = FindObjectOfType<GameManager>();
+
+        if (scoreText == null)
+            scoreText = GetComponentInChildren<TextMeshProUGUI>();
+
+        // Subscribe to GameManager events
+        if (gameManager != null)
+        {
+            gameManager.OnScoreChanged += OnScoreChanged_Handler;
+            gameManager.OnGameOver += OnGameOver_Handler;
+        }
+
+        UpdateScoreDisplay();
+    }
+
+    void Update()
+    {
+        if (!hasGameEnded)
+        {
+            UpdateScoreDisplay();
+            CheckGameOver();
+        }
+    }
+
+    // Event handler for score changes
+    private void OnScoreChanged_Handler(int newScore)
+    {
+        if (scoreText != null)
+            scoreText.text = "Score: " + newScore;
+    }
+
+    // Event handler for game over
+    private void OnGameOver_Handler(int finalScore)
+    {
+        hasGameEnded = true;
+        if (gameOverText != null)
+        {
+            gameOverText.text = "GAME OVER!\nFinal Score: " + finalScore;
+            gameOverText.gameObject.SetActive(true);
+        }
+    }
+
+    void CheckGameOver()
+    {
+        if (gameManager != null && gameManager.IsGameOver())
+        {
+            hasGameEnded = true;
+            if (gameOverText != null)
+            {
+                gameOverText.text = "GAME OVER!\nFinal Score: " + gameManager.GetScore();
+                gameOverText.gameObject.SetActive(true);
+            }
+        }
+    }
+
+    public void UpdateScoreDisplay()
+    {
+        if (gameManager != null && scoreText != null)
+        {
+            int currentScore = gameManager.GetScore();
+            scoreText.text = "Score: " + currentScore;
+        }
+    }
+}
+
+--- AFTER ---
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using UnityEngine.Events;
+
+public class UIManager : MonoBehaviour
+{
+    [SerializeField] private TextMeshProUGUI scoreText;
+    [SerializeField] private TextMeshProUGUI gameOverText;
+    [SerializeField] private GameManager gameManager;
+    
+    // UnityEvent for custom callbacks
+    [SerializeField] private UnityEvent onGameOverEvent = new UnityEvent();
+
+    private bool hasGameEnded = false;
+
+    void Start()
+    {
+        if (gameManager == null)
+            gameManager = FindObjectOfType<GameManager>();
+
+        if (scoreText == null)
+            scoreText = GetComponentInChildren<TextMeshProUGUI>();
+
+        // Subscribe to GameManager events
+        if (gameManager != null)
+        {
+            gameManager.OnScoreChanged += OnScoreChanged_Handler;
+            gameManager.OnGameOver += OnGameOver_Handler;
+            Debug.Log("UIManager subscribed to GameManager events");
+        }
+
+        UpdateScoreDisplay();
+    }
+
+    void Update()
+    {
+        // Events handle UI updates now, no need for manual checking
+    }
+
+    // Event handler for score changes
+    private void OnScoreChanged_Handler(int newScore)
+    {
+        if (scoreText != null)
+            scoreText.text = "Score: " + newScore;
+    }
+
+    // Event handler for game over
+    private void OnGameOver_Handler(int finalScore)
+    {
+        hasGameEnded = true;
+        if (gameOverText != null)
+        {
+            gameOverText.text = "GAME OVER!\nFinal Score: " + finalScore;
+            gameOverText.gameObject.SetActive(true);
+        }
+        
+        // Invoke UnityEvent
+        onGameOverEvent?.Invoke();
+    }
+
+    public void UpdateScoreDisplay()
+    {
+        if (gameManager != null && scoreText != null)
+        {
+            int currentScore = gameManager.GetScore();
+            scoreText.text = "Score: " + currentScore;
+        }
+    }
+}
+
+EXPLANATION:
+- UnityEvent import added: using UnityEngine.Events;
+- onGameOverEvent field added (configurable in Unity Inspector)
+- Update() method simplified (events handle updates)
+- onGameOverEvent?.Invoke() called on game over
+- Custom callbacks can be added in Unity Inspector
+
+
+================================================================================
+10. SUMMARY: ALL CHANGES
+================================================================================
+
+MAIN CHANGES MADE:
+
+1. EVENTS & DELEGATES:
+   ? OnScoreChanged event - Triggered when score increases
+   ? OnGameOver event - Triggered when game ends
+   
+2. ENCAPSULATION:
+   ? GetScore() - Allows retrieving the score
+   ? IsGameOver() - Allows checking game state
+   ? TriggerGameOver() - Can be called externally
+
+3. FINDING METHODS:
+   ? FindPlayerByTag() - Find player by tag
+   ? FindAllEnemies() - Find all enemies in array
+   ? FindObjectOfType<GameManager>() - Find by type
+   
+4. PHYSICS COLLISION:
+   ? OnTriggerEnter() - Trigger collision detection
+   ? CompareTag() - Check object by tag
+   
+5. UNITYEVENTS:
+   ? UnityEvent onGameOverEvent - Inspector-configurable callbacks
+   
+6. COMPONENT USAGE:
+   ? GetComponent<Collider>() - Access component
+   ? GetComponentInChildren<TextMeshProUGUI>() - Access child component
+   
+7. ARRAYS & LISTS:
+   ? List<GameObject> enemies - Manage enemies
+   ? GameObject[] allEnemies - Find enemies with array
+
+
+================================================================================
+11. CODE HIERARCHY
+================================================================================
+
+GameManager
+??? Events (OnScoreChanged, OnGameOver)
+??? Public Methods (GetScore, IsGameOver, TriggerGameOver)
+??? Finding Methods (FindPlayerByTag, FindAllEnemies)
+??? Private Methods (HandleScore, GameOver, etc.)
+
+UIManager
+??? Subscribe to GameManager Events
+??? Handle Event Callbacks
+??? UnityEvents (onGameOverEvent)
+??? Update UI Display
+
+EnemyCollisionDetector (PER ENEMY)
+??? Find GameManager (FindObjectOfType)
+??? Detect Trigger Collision
+??? Call TriggerGameOver()
+
+
+================================================================================
+12. GIT COMMIT COMMAND
+================================================================================
+
+git add Assets/Scripts/
+git commit -m "feat: Add Events, Delegates, Finding Methods, Collision Detection, and UnityEvents"
+git push origin main
+
+
+================================================================================
+COMPLETED CHECKLIST ITEMS
+================================================================================
+
+? Using Events and Delegates
+? Encapsulation (public methods, private data)
+? Finding by Tag (FindWithTag)
+? Finding by Type (FindObjectOfType, FindGameObjectsWithTag)
+? Physics Collision (OnTriggerEnter)
+? Component Usage (GetComponent, GetComponentInChildren)
+? Arrays (GameObject[] allEnemies)
+? Lists (List<GameObject> enemies)
+? UnityEvents
+? Communication between scripts (Events)
+
+================================================================================

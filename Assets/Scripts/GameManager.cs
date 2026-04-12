@@ -47,6 +47,12 @@ public class GameManager : MonoBehaviour
         // Setup camera
         SetupCamera();
         CreatePlayer();
+        
+        // Find player by tag (alternative method)
+        FindPlayerByTag();
+        
+        // Find all enemies (will be called periodically)
+        FindAllEnemies();
     }
 
     void Update()
@@ -118,7 +124,7 @@ public class GameManager : MonoBehaviour
     {
         float inputX = 0f;
 
-        // Yeni Input System - Keyboard kontrol�
+        // Yeni Input System - Keyboard kontrolü
         if (Keyboard.current != null)
         {
             if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
@@ -176,6 +182,13 @@ public class GameManager : MonoBehaviour
         if (collider == null)
             collider = enemy.AddComponent<BoxCollider>();
         collider.size = new Vector3(1f, 1f, 1f);
+
+        // Add collision detector script
+        if (enemy.GetComponent<EnemyCollisionDetector>() == null)
+            enemy.AddComponent<EnemyCollisionDetector>();
+
+        // Set tag
+        enemy.tag = "Enemy";
 
         // Add to list
         enemies.Add(enemy);
@@ -294,6 +307,35 @@ public class GameManager : MonoBehaviour
     public bool IsGameOver()
     {
         return isGameOver;
+    }
+
+    // Public method to trigger game over (called from EnemyCollisionDetector)
+    public void TriggerGameOver()
+    {
+        GameOver();
+    }
+
+    // ========== FINDING METHODS ==========
+
+    // Find player by tag
+    void FindPlayerByTag()
+    {
+        GameObject foundPlayer = GameObject.FindWithTag("Player");
+        if (foundPlayer != null && foundPlayer == player)
+        {
+            Debug.Log("Player found by tag: " + foundPlayer.name);
+        }
+    }
+
+    // Find all enemies by tag and log them
+    void FindAllEnemies()
+    {
+        // Find all enemies in the scene using tag
+        GameObject[] allEnemies = GameObject.FindGameObjectsWithTag("Enemy");
+        Debug.Log("Found " + allEnemies.Length + " enemies in the scene");
+        
+        // Compare with our managed list
+        Debug.Log("Enemies in list: " + enemies.Count);
     }
 
     // ========== HELPER METHODS ==========
