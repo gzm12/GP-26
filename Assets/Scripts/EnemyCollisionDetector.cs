@@ -3,6 +3,7 @@ using UnityEngine;
 public class EnemyCollisionDetector : MonoBehaviour
 {
     private GameManager gameManager;
+    [SerializeField] private float damageAmount = 10f;
 
     void Start()
     {
@@ -23,6 +24,15 @@ public class EnemyCollisionDetector : MonoBehaviour
         if (other.gameObject.CompareTag("Player"))
         {
             Debug.Log("Enemy collision detected with player!");
+            
+            // Deal damage to player through IDamageable interface
+            IDamageable damageable = gameManager as IDamageable;
+            if (damageable != null)
+            {
+                damageable.TakeDamage(damageAmount);
+            }
+            
+            // Trigger game over as fallback
             if (gameManager != null)
             {
                 gameManager.TriggerGameOver();

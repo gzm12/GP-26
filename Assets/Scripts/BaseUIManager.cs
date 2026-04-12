@@ -5,7 +5,7 @@ using UnityEngine.Events;
 /// Abstract base class for UI management systems.
 /// Provides common functionality for score display and game over handling.
 /// </summary>
-public abstract class BaseUIManager : MonoBehaviour
+public abstract class BaseUIManager : MonoBehaviour, IUIUpdatable
 {
     [SerializeField] protected UnityEvent onGameOverEvent = new UnityEvent();
     
@@ -43,5 +43,22 @@ public abstract class BaseUIManager : MonoBehaviour
     protected void InvokeGameOverEvent()
     {
         onGameOverEvent?.Invoke();
+    }
+
+    // ========== IUIUpdatable Implementation ==========
+
+    public virtual void UpdateUI()
+    {
+        UpdateScoreDisplay();
+    }
+
+    public virtual void ShowUI()
+    {
+        gameObject.SetActive(true);
+    }
+
+    public virtual void HideUI()
+    {
+        gameObject.SetActive(false);
     }
 }

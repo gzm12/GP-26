@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
-public class GameManager : MonoBehaviour
+public class GameManager : MonoBehaviour, IDamageable
 {
     // Events and Delegates
     public delegate void ScoreChangedDelegate(int newScore);
@@ -20,6 +20,8 @@ public class GameManager : MonoBehaviour
     private Rigidbody playerRb;
     private float playerSpeed = 10f;
     private Vector3 playerMovement = Vector3.zero;
+    private float playerHealth = 100f;
+    private float maxPlayerHealth = 100f;
 
     // Enemy settings
     private List<GameObject> enemies = new List<GameObject>();
@@ -293,6 +295,43 @@ public class GameManager : MonoBehaviour
 
         // Invoke the OnGameOver event
         OnGameOver?.Invoke(score);
+    }
+
+    // ========== IDAMAGEABLE IMPLEMENTATION ==========
+
+    /// <summary>
+    /// Implementation of IDamageable interface.
+    /// Reduces player health when taking damage.
+    /// </summary>
+    public void TakeDamage(float damage)
+    {
+        if (isGameOver)
+            return;
+
+        playerHealth -= damage;
+        Debug.Log($"Player took {damage} damage! Health: {playerHealth}/{maxPlayerHealth}");
+
+        if (playerHealth <= 0)
+        {
+            playerHealth = 0;
+            GameOver();
+        }
+    }
+
+    /// <summary>
+    /// Get current player health.
+    /// </summary>
+    public float GetPlayerHealth()
+    {
+        return playerHealth;
+    }
+
+    /// <summary>
+    /// Get max player health.
+    /// </summary>
+    public float GetMaxPlayerHealth()
+    {
+        return maxPlayerHealth;
     }
 
     // ========== PUBLIC ACCESSORS ==========
