@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 2100000, guid: af2a35866ce610a44aebd2f1d51f41c7, type: 2}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -151,6 +151,8 @@ MonoBehaviour:
   playerPrefab: {fileID: 78757607867167872, guid: 2676c06f01466154a8a710fd5ca4ba40,
     type: 3}
   enemyPrefab: {fileID: 4245197289032537859, guid: b66467150c73d5b488ee603ff6bd8034,
+    type: 3}
+  foodPrefab: {fileID: 5601609743462674344, guid: 56130ea252f148c4fbedfd3e6201c6a7,
     type: 3}
 --- !u!4 &125748624
 Transform:
@@ -327,7 +329,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: New Text
+  m_text: asdasdasdasdasd
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -435,12 +437,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b76f04a0ae86ace42b6e1c79900fee6f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIManager
-  scoreText: {fileID: 353234152}
-  gameOverText: {fileID: 1370930384}
-  gameManager: {fileID: 125748623}
   onGameOverEvent:
     m_PersistentCalls:
       m_Calls: []
+  scoreText: {fileID: 353234152}
+  gameOverText: {fileID: 1370930384}
+  gameManager: {fileID: 125748623}
 --- !u!4 &489342286
 Transform:
   m_ObjectHideFlags: 0
@@ -730,7 +732,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 
+  m_text: asdasdasdadasd
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -764,7 +766,7 @@ MonoBehaviour:
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 16
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -845,7 +847,7 @@ Camera:
   m_GameObject: {fileID: 1698313742}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 2
+  m_ClearFlags: 1
   m_BackGroundColor: {r: 0.8792453, g: 0.4761196, b: 0.65178126, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
@@ -869,7 +871,7 @@ Camera:
     height: 1
   near clip plane: 0.3
   far clip plane: 1000
-  field of view: 60
+  field of view: 25.5
   orthographic: 0
   orthographic size: 5
   m_Depth: -1

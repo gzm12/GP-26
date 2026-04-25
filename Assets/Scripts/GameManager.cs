@@ -14,6 +14,7 @@ public class GameManager : MonoBehaviour, IDamageable
     // Prefab references
     [SerializeField] private GameObject playerPrefab;
     [SerializeField] private GameObject enemyPrefab;
+    [SerializeField] private GameObject foodPrefab;
 
     // Player settings
     private GameObject player;
@@ -25,6 +26,10 @@ public class GameManager : MonoBehaviour, IDamageable
 
     // Enemy settings
     private List<GameObject> enemies = new List<GameObject>();
+    // Food (collectible) settings
+    private List<GameObject> foods = new List<GameObject>();
+    private float foodSpawnInterval = 5f;
+    private float foodSpawnTimer = 0f;
     private float spawnInterval = 1.5f;
     private float spawnTimer = 0f;
     private float enemyFallSpeed = 5f;
@@ -45,6 +50,8 @@ public class GameManager : MonoBehaviour, IDamageable
             playerPrefab = Resources.Load<GameObject>("Prefabs/PlayerPrefab");
         if (enemyPrefab == null)
             enemyPrefab = Resources.Load<GameObject>("Prefabs/EnemyPrefab");
+        if (foodPrefab == null)
+            foodPrefab = Resources.Load<GameObject>("Prefabs/FoodPrefab");
 
         // Setup camera
         SetupCamera();
@@ -64,8 +71,10 @@ public class GameManager : MonoBehaviour, IDamageable
 
         HandlePlayerInput();
         HandleEnemySpawning();
+        HandleFoodSpawning();
         HandleScore();
         UpdateEnemyPositions();
+        UpdateFoodPositions();
         CheckCollisions();
     }
 
@@ -154,6 +163,80 @@ public class GameManager : MonoBehaviour, IDamageable
         {
             SpawnEnemy();
             spawnTimer = 0f;
+        }
+    }
+
+    // ========== FOOD (COLLECTIBLE) LOGIC ==========
+
+    void HandleFoodSpawning()
+    {
+        foodSpawnTimer += Time.deltaTime;
+
+        if (foodSpawnTimer >= foodSpawnInterval)
+        {
+            SpawnFood();
+            foodSpawnTimer = 0f;
+        }
+    }
+
+    void SpawnFood()
+    {
+        if (foodPrefab == null)
+            return;
+
+        GameObject food = Instantiate(foodPrefab);
+        food.name = "Food";
+        float randomX = Random.Range(-8f, 8f);
+        food.transform.position = new Vector3(randomX, 8f, 0);
+
+        // Remove 2D components and add 3D components
+        RemoveBoxCollider2D(food);
+        Rigidbody2D rb2d = food.GetComponent<Rigidbody2D>();
+        if (rb2d != null)
+            Destroy(rb2d);
+
+        Rigidbody rb = food.GetComponent<Rigidbody>();
+        if (rb == null)
+            rb = food.AddComponent<Rigidbody>();
+
+        rb.useGravity = false;
+        rb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionX | RigidbodyConstraints.FreezePositionZ;
+
+        BoxCollider collider = food.GetComponent<BoxCollider>();
+        if (collider == null)
+            collider = food.AddComponent<BoxCollider>();
+        collider.size = new Vector3(1f, 1f, 1f);
+
+        // Add collectible behaviour script if not present
+        if (food.GetComponent<FoodCollectible>() == null)
+            food.AddComponent<FoodCollectible>();
+
+        // Tag and add to list
+        food.tag = "Food";
+        foods.Add(food);
+    }
+
+    void UpdateFoodPositions()
+    {
+        float currentFallSpeed = enemyFallSpeed + (Time.timeSinceLevelLoad * enemySpeedIncrement);
+
+        for (int i = foods.Count - 1; i >= 0; i--)
+        {
+            GameObject food = foods[i];
+
+            if (food == null)
+            {
+                foods.RemoveAt(i);
+                continue;
+            }
+
+            food.transform.position += Vector3.down * currentFallSpeed * Time.deltaTime;
+
+            if (food.transform.position.y < -5f)
+            {
+                Destroy(food);
+                foods.RemoveAt(i);
+            }
         }
     }
 
@@ -278,7 +361,11 @@ public class GameManager : MonoBehaviour, IDamageable
         isGameOver = true;
         Debug.Log("Game Over! Final Score: " + score);
 
-        // Stop all enemy movement
+        // Pause the game time so animations that rely on scaled time stop
+        Time.timeScale = 0f;
+        AudioListener.pause = true;
+
+        // Stop all enemy movement and pause their animators if present
         foreach (GameObject enemy in enemies)
         {
             if (enemy != null)
@@ -286,12 +373,23 @@ public class GameManager : MonoBehaviour, IDamageable
                 Rigidbody rb = enemy.GetComponent<Rigidbody>();
                 if (rb != null)
                     rb.linearVelocity = Vector3.zero;
+
+                Animator enemyAnim = enemy.GetComponent<Animator>();
+                if (enemyAnim != null)
+                    enemyAnim.speed = 0f;
             }
         }
 
-        // Stop player movement
+        // Stop player movement and pause player animator
         if (playerRb != null)
             playerRb.linearVelocity = Vector3.zero;
+
+        if (player != null)
+        {
+            Animator playerAnim = player.GetComponent<Animator>();
+            if (playerAnim != null)
+                playerAnim.speed = 0f;
+        }
 
         // Invoke the OnGameOver event
         OnGameOver?.Invoke(score);
@@ -375,6 +473,29 @@ public class GameManager : MonoBehaviour, IDamageable
         
         // Compare with our managed list
         Debug.Log("Enemies in list: " + enemies.Count);
+    }
+
+    // ========== SCORE MULTIPLIER (CALLED BY FOOD) ==========
+
+    /// <summary>
+    /// Multiply the current score by the given factor. If score is zero it becomes factor.
+    /// Invokes OnScoreChanged after update.
+    /// </summary>
+    public void MultiplyScore(int factor)
+    {
+        if (isGameOver)
+            return;
+
+        if (factor <= 1)
+            return;
+
+        if (score <= 0)
+            score = factor;
+        else
+            score *= factor;
+
+        Debug.Log($"Score multiplied by {factor}. New score: {score}");
+        OnScoreChanged?.Invoke(score);
     }
 
     // ========== HELPER METHODS ==========
